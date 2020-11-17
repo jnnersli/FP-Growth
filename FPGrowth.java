@@ -246,6 +246,8 @@ public class FPGrowth{
             /*
             Compares only the counts of each item so that they can be sorted by their counts.
             */
+            if (count.compareTo(o.count) == 0)
+                return value.compareTo(o.value);
             return count.compareTo(o.count);
         }
         
