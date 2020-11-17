@@ -24,6 +24,7 @@ public class FPGrowth{
     private List<OneItemset> candidates;
     private FPNode root;
     
+    
     /*  Main method  */
     public static void main(String[] args) throws FileNotFoundException {
         //  default values for transaction file and minimum support threshold
@@ -58,11 +59,11 @@ public class FPGrowth{
     
     
     /*  Constructor  */
-    public FPGrowth(String transaction_file, int minsup) {
-        this.transaction_file = transaction_file;
-        this.minsup = minsup;
-        this.candidates = new ArrayList<>();
-        this.root = new FPNode(null);
+    public FPGrowth(String tf, int ms) {
+        transaction_file = tf;
+        minsup = ms;
+        candidates = new ArrayList<>();
+        root = new FPNode(null);
     } 
     
     
@@ -71,13 +72,13 @@ public class FPGrowth{
         Finds the occurences of each 1-itemset.
         */
         
-        File file = new File(this.transaction_file);
+        File file = new File(transaction_file);
         Scanner scanner = new Scanner(file);
     
         int num_items, index, current_count;
         OneItemset current_item;
         
-        this.num_transactions = scanner.nextInt();
+        num_transactions = Integer.parseInt(scanner.next());
         System.out.println("num transactions "+this.num_transactions);
         
         //  determine counts for each item
@@ -86,16 +87,16 @@ public class FPGrowth{
             num_items = scanner.nextInt();
             
             for(int i = 0; i < num_items; i++) {
-                current_item = new OneItemset(scanner.nextInt());
+                current_item = new OneItemset(Integer.parseInt(scanner.next()));
                 
                 //  increment the count if item has already been seen before.
-                if(this.candidates.contains(current_item)) {
-                    this.candidates.get(this.candidates.indexOf(current_item)).increment();
+                if(candidates.contains(current_item)) {
+                    candidates.get(candidates.indexOf(current_item)).increment();
                 }
                 
                 //  otherwise add to list of items and add a count of 1.
                 else {
-                    this.candidates.add(current_item);
+                    candidates.add(current_item);
                 }
             }
         }
@@ -103,11 +104,10 @@ public class FPGrowth{
         scanner.close();
         
         //  printing
-        for(int i = 0; i < this.candidates.size(); i++){
-            System.out.println(this.candidates.get(i).toString());
+        for(int i = 0; i < candidates.size(); i++){
+            System.out.println(candidates.get(i).toString());
         }
     }
-    
     
     
     private void construct_FP_tree() throws FileNotFoundException {
@@ -115,7 +115,7 @@ public class FPGrowth{
         Constructs the global FP tree.
         */
         
-        File file = new File(this.transaction_file);
+        File file = new File(transaction_file);
         Scanner scanner = new Scanner(file);
         
         scanner.next();  // Skip the total number of transactions
@@ -135,7 +135,12 @@ public class FPGrowth{
             //  Add the items and their counts according to the candidate table
             for (int i = 0; i < num_items; i++) {
                 current_item = new OneItemset(scanner.nextInt());
-                transaction.add(this.candidates.get(this.candidates.indexOf(current_item)));
+                if (candidates.indexOf(current_item) == -1) {
+                    candidates.add(current_item);
+                    transaction.add(current_item);
+                }
+                else
+                    transaction.add(candidates.get(candidates.indexOf(current_item)));
             }
             
             //  Sort them in reverse order of their counts
@@ -145,11 +150,12 @@ public class FPGrowth{
             for (OneItemset i: transaction) System.out.print(i + "  ");
             System.out.println();
             
-            //  Adding the items to the FP tree
-            FPNode current_node, previous_node;
-            previous_node = this.root;
+            
+            FPNode current_node, previous_node, chaining_pointer;
+            previous_node = root;
                 
-            //  Looping through the transaction to add the items one by one.    
+            //  Looping through the transaction to add the items to the FP tree
+            //  one by one.    
             for (int i = 0; i < transaction.size(); i++) {
                 
                 //  Make a new FPNode and new OneItemset with count set to 1 (default).
@@ -157,8 +163,29 @@ public class FPGrowth{
                 
                 //  If the previous node is a leaf node, simply add onto it.
                 if (previous_node.children().isEmpty()) {
-                    System.out.println("adding new node to empty "+ current_node.item());
+                    System.out.println("adding new node "+ current_node.item() + " to " + previous_node.item());
                     previous_node.children.add(current_node);
+                    current_node.setParent(previous_node);
+                    System.out.println(current_node.item() + " belongs to " + previous_node.item());
+                    
+                    //  Attach a chaining pointer from the candidate list for the
+                    //  projected FP tree.
+                    
+                    if (candidates.get(candidates.indexOf(current_node.item())).nextNode() == null) {
+                        candidates.get(candidates.indexOf(current_node.item())).setNextNode(current_node);
+                    }
+                    
+                    else {
+                        chaining_pointer = candidates.get(candidates.indexOf(current_node.item())).nextNode();
+                        
+                        //  Find the end of the chain.
+                        while (chaining_pointer.nextNode() != null) {
+                            chaining_pointer = chaining_pointer.nextNode();
+                        }
+                    
+                        //  Add the new node to the chain.
+                        chaining_pointer.setNextNode(current_node);
+                    }
                 }
                 
                 //  If the previous node has a child with the same value, 
@@ -173,8 +200,9 @@ public class FPGrowth{
                 //  This is the same as the first condition but just to avoid null pointer issues
                 //  this was easier.
                 else {
-                    System.out.println("adding new node "+ current_node.item());
+                    System.out.println("adding new node "+ current_node.item() + " to " + previous_node.item());
                     previous_node.children.add(current_node);
+                    current_node.setParent(previous_node);
                 }
                 
                 previous_node = current_node;
@@ -201,24 +229,24 @@ public class FPGrowth{
         private FPNode nextNode;
         
         public OneItemset(Integer val) {
-            this.value = val;
-            this.count = 1;
-            this.nextNode = null;
+            value = val;
+            count = 1;
+            nextNode = null;
         }
         
-        public Integer value() { return this.value; }
-        public Integer count() { return this.count; }
-        public FPNode nextNode() { return this.nextNode; }
+        public Integer value() { return value; }
+        public Integer count() { return count; }
+        public FPNode nextNode() { return nextNode; }
         
-        public void increment() { this.count = this.count + 1; }
-        public void setNextNode(FPNode node) { this.nextNode = node; }
+        public void increment() { count = count + 1; }
+        public void setNextNode(FPNode node) { nextNode = node; }
         
         @Override
         public int compareTo(OneItemset o) {
             /*
             Compares only the counts of each item so that they can be sorted by their counts.
             */
-            return this.count().compareTo(o.count());
+            return count.compareTo(o.count);
         }
         
         @Override
@@ -231,7 +259,7 @@ public class FPGrowth{
                 return true;
             if (o == null || o.getClass() != this.getClass())
                 return false;
-            if (o.getClass() == this.getClass() && ((OneItemset) o).value() == this.value())
+            if (o.getClass() == this.getClass() && ((OneItemset) o).value == this.value)
                 return true;
             return false;
         }
@@ -249,24 +277,29 @@ public class FPGrowth{
         
         Attributes:
             item: a OneItemset containing the item value and count.
+            parent: the FPNode that is the immediate parent of this node.
             children: a List of FPNodes that are its child nodes.
             nextNode: the next node in the FP tree with the same item value.
         */
         
         private OneItemset item;
+        private FPNode parent;
         private List<FPNode> children;
         private FPNode nextNode;
         
-        public FPNode(OneItemset item) {
-            this.item = item;
-            this.children = new LinkedList<>();
-            this.nextNode = null;
+        public FPNode(OneItemset i) {
+            item = i;
+            children = new LinkedList<>();
+            nextNode = null;
         }
         
-        public OneItemset item() { return this.item; }
-        public List<FPNode> children() { return this.children; }
+        public OneItemset item() { return item; }
+        public FPNode parent() { return parent; }
+        public List<FPNode> children() { return children; }
+        public FPNode nextNode() { return nextNode; }
         
-        public void setNextNode(FPNode node) { this.nextNode = node; }
+        public void setParent(FPNode node) { parent = node; }
+        public void setNextNode(FPNode node) { nextNode = node; }
         
         @Override
         public boolean equals(Object o) {
@@ -277,7 +310,7 @@ public class FPGrowth{
                 return true;
             if (o == null || o.getClass() != this.getClass())
                 return false;
-            if (o.getClass() == this.getClass() && ((FPNode) o).item().equals(this.item()))
+            if (o.getClass() == this.getClass() && ((FPNode) o).item.equals(this.item))
                 return true;
             return false;
         }
