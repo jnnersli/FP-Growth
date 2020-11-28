@@ -49,30 +49,27 @@ public class FPGrowth{
         FPGrowth fpg = new FPGrowth(transaction_file, minsup);
         
         //  Initialize candidates and counts.
-        System.out.println("Counting the 1-itemsets");
         fpg.count1Itemsets();  
         
         //  Sort candidates in descending order of count.
         Collections.sort(fpg.candidates, Collections.reverseOrder());
         
         //  Build the FP tree.
-        System.out.println("Building the FP tree :)");
         fpg.constructFPTree();
         
         //  Sort the candidates in ascending order of count
         Collections.sort(fpg.candidates);
         
         //  Mining the FP tree.
-        System.out.println("Mining...");
         List<List<OneItemset>> conditional_pattern_base, projected_tree;
         for (OneItemset item: fpg.candidates) {
             //  For each single itemset, find the conditional pattern base.
-            System.out.print("\ncpb "+item+" ");
             conditional_pattern_base = fpg.conditionalPatternBase(item);
-            System.out.println("conditional_pattern_base");
+            //for (List<OneItemset> pattern: conditional_pattern_base) {
+                //System.out.println(pattern);
+            //}
             
             //  Then build its projected FP tree.
-            System.out.println("projected tree: ");
             projected_tree = fpg.projectedTree(conditional_pattern_base);
             
             //  Then find the frequent patterns from the projected tree.
@@ -97,7 +94,6 @@ public class FPGrowth{
         
         for (int i = 0; i < fpg.frequent_patterns.size(); i++) {
             pattern = fpg.frequent_patterns.get(i);
-            writer.print(i + ")  ");
             
             for (int j = pattern.size()-1 ; j >= 0 ; j--) {
                     
@@ -162,7 +158,6 @@ public class FPGrowth{
         scanner.close();
         
         //  Eliminating infrequent candidates.
-        System.out.println("Eliminating infrequent guys");
         
         int i = 0;
         while (i < candidates.size()) {
@@ -307,20 +302,21 @@ public class FPGrowth{
         */
         
         List<List<OneItemset>> projected_tree = new ArrayList<>();
-        List<OneItemset> itemset, pattern;
+        List<OneItemset> itemset, comparing_itemset, pattern;
         int min_count, count, j;
         boolean contains;
         
         //  Looping through the conditional pattern base list
         //  (the list of paths).
         for (int i = 0; i < cpb.size(); i++) {
+            comparing_itemset = cpb.get(i);
             itemset = new ArrayList<>();
             j = 0;
             
             //  We are adding the items in each path to the itemset one by one.
-            while (itemset.size() < cpb.get(i).size()) {
+            while (itemset.size() < comparing_itemset.size()) {
                 pattern = new ArrayList<>();
-                itemset.add(cpb.get(i).get(j));
+                itemset.add(comparing_itemset.get(j));
                 count = 0;
                 min_count = num_transactions;
                 
@@ -352,9 +348,10 @@ public class FPGrowth{
                 if (count >= minimum_count) {
                     for (OneItemset item: itemset) {
                         pattern.add(new OneItemset(item.value, count));
-                        System.out.println("adding "+ pattern);
                     }
-                    projected_tree.add(pattern);
+                    if (!projected_tree.contains(pattern)) {
+                        projected_tree.add(pattern);
+                    }
                 }
                 
                 j++;
